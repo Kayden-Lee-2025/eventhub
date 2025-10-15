@@ -84,26 +84,26 @@ eventhub/
    **示例（裸机环境时间戳实现）**：
 
    ```c
-// 使用 SysTick 定时器生成 1ms 时间戳
-static volatile uint32_t sys_tick_ms = 0;
-void SysTick_Handler(void) 
-{
-    sys_tick_ms++;
-}
-
-eventhub_timestamp_t eventhub_port_get_timestamp(void) 
-{
-    return sys_tick_ms;
-}
+   // 使用 SysTick 定时器生成 1ms 时间戳
+   static volatile uint32_t sys_tick_ms = 0;
+   void SysTick_Handler(void) 
+   {
+       sys_tick_ms++;
+   }
+   
+   eventhub_timestamp_t eventhub_port_get_timestamp(void) 
+   {
+       return sys_tick_ms;
+   }
    ```
 
    **示例（FreeRTOS 队列实现）**：
 
    ```c
-bool eventhub_port_queue_send(eventhub_queue_t queue, const void* data, uint32_t timeout) 
-{
-    return xQueueSend(queue, data, timeout) == pdPASS;
-}
+   bool eventhub_port_queue_send(eventhub_queue_t queue, const void* data, uint32_t timeout) 
+   {
+       return xQueueSend(queue, data, timeout) == pdPASS;
+   }
    ```
 
    ## 3. 核心 API 说明
