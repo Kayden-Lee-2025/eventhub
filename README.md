@@ -74,10 +74,10 @@ eventhub/
 
 
 
-   | 环境 | 需实现的核心接口                                             |
-   | ---- | ------------------------------------------------------------ |
-   | 裸机 | 互斥锁（空实现）、时间戳（如 SysTick）、日志（如 UART）      |
-   | RTOS | 互斥锁（如 FreeRTOS Semaphore）、队列（如 FreeRTOS Queue）、时间戳、日志 |
+| 环境 | 需实现的核心接口                                             |
+| ---- | ------------------------------------------------------------ |
+| 裸机 | 互斥锁（空实现）、时间戳（如 SysTick）、日志（如 UART）      |
+| RTOS | 互斥锁（如 FreeRTOS Semaphore）、队列（如 FreeRTOS Queue）、时间戳、日志 |
 
 
 
@@ -112,24 +112,24 @@ eventhub/
 
    ### 3.1 事件中枢初始化与销毁
 
-   | 函数原型                                 | 功能描述                                                     |
-   | ---------------------------------------- | ------------------------------------------------------------ |
-   | `bool eventhub_init(eventhub_t* hub)`    | 初始化事件中枢（需传入全局 `eventhub_t` 实例），成功返回 `true`。 |
-   | `void eventhub_destroy(eventhub_t* hub)` | 销毁事件中枢（释放互斥锁、队列等资源），裸机环境可省略。     |
+| 函数原型                                 | 功能描述                                                     |
+| ---------------------------------------- | ------------------------------------------------------------ |
+| `bool eventhub_init(eventhub_t* hub)`    | 初始化事件中枢（需传入全局 `eventhub_t` 实例），成功返回 `true`。 |
+| `void eventhub_destroy(eventhub_t* hub)` | 销毁事件中枢（释放互斥锁、队列等资源），裸机环境可省略。     |
 
    ### 3.2 事件订阅与取消订阅
 
-   | 函数原型                                                     | 功能描述                                                    |
-   | ------------------------------------------------------------ | ----------------------------------------------------------- |
-   | `bool eventhub_subscribe(eventhub_t* hub, eventhub_event_type_t event_type, eventhub_subscriber_cb cb, void* user_data)` | 订阅指定类型事件，传入回调函数和用户数据，成功返回 `true`。 |
-   | `bool eventhub_unsubscribe(eventhub_t* hub, eventhub_event_type_t event_type, eventhub_subscriber_cb cb)` | 取消订阅指定事件类型的回调函数，成功返回 `true`。           |
+| 函数原型                                                     | 功能描述                                                    |
+| ------------------------------------------------------------ | ----------------------------------------------------------- |
+| `bool eventhub_subscribe(eventhub_t* hub, eventhub_event_type_t event_type, eventhub_subscriber_cb cb, void* user_data)` | 订阅指定类型事件，传入回调函数和用户数据，成功返回 `true`。 |
+| `bool eventhub_unsubscribe(eventhub_t* hub, eventhub_event_type_t event_type, eventhub_subscriber_cb cb)` | 取消订阅指定事件类型的回调函数，成功返回 `true`。           |
 
    ### 3.3 事件发布与处理
 
-   | 函数原型                                                     | 功能描述                                                     |
-   | ------------------------------------------------------------ | ------------------------------------------------------------ |
-   | `bool eventhub_publish(eventhub_t* hub, const eventhub_event_t* event, uint32_t timeout)` | 发布事件：- 裸机环境：同步调用所有订阅者回调；- RTOS 环境：将事件放入队列（`timeout` 为等待时间）。 |
-   | `void eventhub_process(eventhub_t* hub, uint32_t timeout)`   | 事件处理：- 裸机环境：空实现（发布时已同步处理）；- RTOS 环境：从队列取事件并分发（需在独立任务中调用）。 |
+| 函数原型                                                     | 功能描述                                                     |
+| ------------------------------------------------------------ | ------------------------------------------------------------ |
+| `bool eventhub_publish(eventhub_t* hub, const eventhub_event_t* event, uint32_t timeout)` | 发布事件：- 裸机环境：同步调用所有订阅者回调；- RTOS 环境：将事件放入队列（`timeout` 为等待时间）。 |
+| `void eventhub_process(eventhub_t* hub, uint32_t timeout)`   | 事件处理：- 裸机环境：空实现（发布时已同步处理）；- RTOS 环境：从队列取事件并分发（需在独立任务中调用）。 |
 
    ### 3.4 事件数据结构
 
@@ -387,6 +387,34 @@ eventhub/
        while (1);
    }
    ```
+
+### 5.3 简化函数调用API
+
+如果整个项目都只有一个eventhub实例，那么每次发布订阅都传入eventhub实例就会增加函数调用的麻烦，必须先声明eventhub实例，才能调用发布订阅的API显得多余。
+
+基于此，如果是单例模式，用户可以在应用层再增加一次接口封装，如增加一个app_evevthub.h文件，实现示例如下：
+
+```c
+// app_evevthub.h
+#include "eventhub.h"
+
+
+extern eventhub_t g_eventhub;	// 假设这是在应用中定义的实例
+
+#define APP_EVENTHUB_SUBSCRIBE(event_type, cb, user_data) \
+    eventhub_subscribe(&g_eventhub, event_type, cb, user_data)
+    
+#define APP_EVENTHUB_UNSUBSCRIBE(event_type, cb) \
+    eventhub_unsubscribe(&g_default_eventhub, event_type, cb)
+
+#define APP_EVENTHUB_PUBLISH(event, timeout) \
+    eventhub_publish(&g_default_eventhub, event, timeout)
+
+#define APP_EVENTHUB_PROCESS(timeout) \
+    eventhub_process(&g_default_eventhub, timeout)
+```
+
+这样用户调用宏定义的简化API时就可以少传递一个参数，应用只需要引用这个头文件即可。
 
    ## 6. 常见问题与调试
 
