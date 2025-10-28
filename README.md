@@ -100,7 +100,7 @@ eventhub/
    **示例（FreeRTOS 队列实现）**：
 
    ```c
-   bool eventhub_port_queue_send(eventhub_queue_t queue, const void* data, uint32_t timeout) 
+   bool eventhub_port_queue_send(eventhub_queue_t* queue, const void* data, uint32_t timeout) 
    {
        return xQueueSend(queue, data, timeout) == pdPASS;
    }

@@ -27,9 +27,9 @@ typedef struct
     // 内部状态（订阅者列表、锁、队列等）
     struct 
     {
-        eventhub_mutex_t mutex;
+        eventhub_mutex_t* mutex;
 #if EVENTHUB_USING_RTOS
-        eventhub_queue_t queue;
+        eventhub_queue_t* queue;
 #endif
         // 订阅者列表（包含事件类型、回调、用户数据）
         struct 

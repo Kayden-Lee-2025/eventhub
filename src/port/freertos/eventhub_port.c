@@ -9,25 +9,25 @@ bool eventhub_port_mutex_init(eventhub_mutex_t* mutex)
 {
     if (mutex == NULL) return false;
     
-    *mutex = xSemaphoreCreateMutex();
-    return *mutex != NULL;
+    mutex = xSemaphoreCreateMutex();
+    return mutex != NULL;
 }
 
-bool eventhub_port_mutex_lock(eventhub_mutex_t mutex, uint32_t timeout) 
+bool eventhub_port_mutex_lock(eventhub_mutex_t* mutex, uint32_t timeout) 
 {
     if (mutex == NULL) return false;
     
     return xSemaphoreTake(mutex, timeout) == pdTRUE;
 }
 
-void eventhub_port_mutex_unlock(eventhub_mutex_t mutex) 
+void eventhub_port_mutex_unlock(eventhub_mutex_t* mutex) 
 {
     if (mutex == NULL) return;
     
     xSemaphoreGive(mutex);
 }
 
-void eventhub_port_mutex_destroy(eventhub_mutex_t mutex) 
+void eventhub_port_mutex_destroy(eventhub_mutex_t* mutex) 
 {
     if (mutex == NULL) return;
     
@@ -45,25 +45,25 @@ bool eventhub_port_queue_init(eventhub_queue_t* queue, uint32_t item_size, uint3
 {
     if (queue == NULL) return false;
     
-    *queue = xQueueCreate(queue_len, item_size);
-    return *queue != NULL;
+    queue = xQueueCreate(queue_len, item_size);
+    return queue != NULL;
 }
 
-bool eventhub_port_queue_send(eventhub_queue_t queue, const void* data, uint32_t timeout) 
+bool eventhub_port_queue_send(eventhub_queue_t* queue, const void* data, uint32_t timeout) 
 {
     if (queue == NULL || data == NULL) return false;
     
     return xQueueSend(queue, data, timeout) == pdPASS;
 }
 
-bool eventhub_port_queue_receive(eventhub_queue_t queue, void* data, uint32_t timeout) 
+bool eventhub_port_queue_receive(eventhub_queue_t* queue, void* data, uint32_t timeout) 
 {
     if (queue == NULL || data == NULL) return false;
     
     return xQueueReceive(queue, data, timeout) == pdPASS;
 }
 
-void eventhub_port_queue_destroy(eventhub_queue_t queue) 
+void eventhub_port_queue_destroy(eventhub_queue_t* queue) 
 {
     if (queue == NULL) return;
     

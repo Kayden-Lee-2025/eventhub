@@ -11,7 +11,7 @@ bool eventhub_port_mutex_init(eventhub_mutex_t* mutex)
     return true;
 }
 
-bool eventhub_port_mutex_lock(eventhub_mutex_t mutex, uint32_t timeout) 
+bool eventhub_port_mutex_lock(eventhub_mutex_t* mutex, uint32_t timeout) 
 {
     (void)timeout; // 裸机环境下忽略超时参数
     (void)mutex;   // 裸机环境下无需实际操作
@@ -20,14 +20,14 @@ bool eventhub_port_mutex_lock(eventhub_mutex_t mutex, uint32_t timeout)
     return true;
 }
 
-void eventhub_port_mutex_unlock(eventhub_mutex_t mutex) 
+void eventhub_port_mutex_unlock(eventhub_mutex_t* mutex) 
 {
     (void)mutex;   // 裸机环境下无需实际操作
     
     // 裸机环境下无需实际解锁操作
 }
 
-void eventhub_port_mutex_destroy(eventhub_mutex_t mutex) 
+void eventhub_port_mutex_destroy(eventhub_mutex_t* mutex) 
 {
     (void)mutex;   // 裸机环境下无需实际操作
     

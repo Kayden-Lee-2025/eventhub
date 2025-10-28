@@ -13,7 +13,7 @@ bool eventhub_init(eventhub_t* hub)
     memset(hub, 0, sizeof(eventhub_t));
 
     // 初始化互斥锁
-    if (!eventhub_port_mutex_init(&hub->priv.mutex)) 
+    if (!eventhub_port_mutex_init(hub->priv.mutex)) 
     {
         EVENTHUB_LOG("eventhub: mutex init failed\n");
         return false;
@@ -21,7 +21,7 @@ bool eventhub_init(eventhub_t* hub)
 
 #if EVENTHUB_USING_RTOS
     // 初始化事件队列（存储eventhub_event_t类型）
-    if (!eventhub_port_queue_init(&hub->priv.queue, sizeof(eventhub_event_t), EVENTHUB_QUEUE_SIZE)) 
+    if (!eventhub_port_queue_init(hub->priv.queue, sizeof(eventhub_event_t), EVENTHUB_QUEUE_SIZE)) 
     {
         EVENTHUB_LOG("eventhub: queue init failed\n");
         eventhub_port_mutex_destroy(hub->priv.mutex);

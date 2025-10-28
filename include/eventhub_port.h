@@ -10,14 +10,14 @@ typedef uint32_t eventhub_timestamp_t;
 
 // 互斥锁类型（统一使用值类型）
 #if EVENTHUB_USING_RTOS
-typedef void* eventhub_mutex_t;
+typedef void eventhub_mutex_t;
 #else
 typedef struct { int dummy; } eventhub_mutex_t;
 #endif
 
 // 事件队列类型（仅RTOS环境有效）
 #if EVENTHUB_USING_RTOS
-typedef void* eventhub_queue_t;
+typedef void eventhub_queue_t;
 #endif
 
 /**
@@ -33,19 +33,19 @@ bool eventhub_port_mutex_init(eventhub_mutex_t* mutex);
  * @param timeout 超时时间（RTOS用ticks，裸机忽略）
  * @return 成功返回true
  */
-bool eventhub_port_mutex_lock(eventhub_mutex_t mutex, uint32_t timeout);
+bool eventhub_port_mutex_lock(eventhub_mutex_t* mutex, uint32_t timeout);
 
 /**
  * 解锁
  * @param mutex 互斥锁对象
  */
-void eventhub_port_mutex_unlock(eventhub_mutex_t mutex);
+void eventhub_port_mutex_unlock(eventhub_mutex_t* mutex);
 
 /**
  * 销毁互斥锁
  * @param mutex 互斥锁对象
  */
-void eventhub_port_mutex_destroy(eventhub_mutex_t mutex);
+void eventhub_port_mutex_destroy(eventhub_mutex_t* mutex);
 
 /**
  * 获取当前时间戳（毫秒）
@@ -70,7 +70,7 @@ bool eventhub_port_queue_init(eventhub_queue_t* queue, uint32_t item_size, uint3
  * @param timeout 超时时间
  * @return 成功返回true
  */
-bool eventhub_port_queue_send(eventhub_queue_t queue, const void* data, uint32_t timeout);
+bool eventhub_port_queue_send(eventhub_queue_t* queue, const void* data, uint32_t timeout);
 
 /**
  * 从队列接收数据（RTOS环境）
@@ -79,13 +79,13 @@ bool eventhub_port_queue_send(eventhub_queue_t queue, const void* data, uint32_t
  * @param timeout 超时时间
  * @return 成功返回true
  */
-bool eventhub_port_queue_receive(eventhub_queue_t queue, void* data, uint32_t timeout);
+bool eventhub_port_queue_receive(eventhub_queue_t* queue, void* data, uint32_t timeout);
 
 /**
  * 销毁队列（RTOS环境）
  * @param queue 队列对象
  */
-void eventhub_port_queue_destroy(eventhub_queue_t queue);
+void eventhub_port_queue_destroy(eventhub_queue_t* queue);
 #endif
 
 #if EVENTHUB_ENABLE_LOG
