@@ -2,14 +2,6 @@
 #include "stm32f1xx_hal.h" // 以STM32为例，用户需替换为自己的硬件库
 
 // 裸机互斥锁（无需实际锁，因为无多任务）
-bool eventhub_port_mutex_init(eventhub_mutex_t* mutex) 
-{
-    if (mutex == NULL) return false;
-    
-    // 裸机环境下mutex是一个结构体，这里可以初始化结构体成员
-    mutex->dummy = 0;
-    return true;
-}
 
 bool eventhub_port_mutex_lock(eventhub_mutex_t* mutex, uint32_t timeout) 
 {

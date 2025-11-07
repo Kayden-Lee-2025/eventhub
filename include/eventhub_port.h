@@ -22,10 +22,9 @@ typedef void eventhub_queue_t;
 
 /**
  * 初始化互斥锁
- * @param mutex 互斥锁对象指针（用于存储互斥锁句柄）
- * @return 成功返回true
+ * @return 成功返回互斥锁对象，失败返回NULL
  */
-bool eventhub_port_mutex_init(eventhub_mutex_t* mutex);
+eventhub_mutex_t* eventhub_port_mutex_init(void);
 
 /**
  * 上锁
@@ -56,12 +55,11 @@ eventhub_timestamp_t eventhub_port_get_timestamp(void);
 #if EVENTHUB_USING_RTOS
 /**
  * 初始化事件队列（RTOS环境）
- * @param queue 队列对象指针（用于存储队列句柄）
  * @param item_size 队列项大小
  * @param queue_len 队列长度
- * @return 成功返回true
+ * @return 成功返回消息队列对象，失败返回NULL
  */
-bool eventhub_port_queue_init(eventhub_queue_t* queue, uint32_t item_size, uint32_t queue_len);
+eventhub_queue_t* eventhub_port_queue_init(uint32_t item_size, uint32_t queue_len);
 
 /**
  * 向队列发送数据（RTOS环境）

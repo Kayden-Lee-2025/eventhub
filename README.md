@@ -392,26 +392,76 @@ eventhub/
 
 如果整个项目都只有一个eventhub实例，那么每次发布订阅都传入eventhub实例就会增加函数调用的麻烦，必须先声明eventhub实例，才能调用发布订阅的API显得多余。
 
-基于此，如果是单例模式，用户可以在应用层再增加一次接口封装，如增加一个app_evevthub.h文件，实现示例如下：
+基于此，如果是单例模式，用户可以在应用层再增加一次接口封装，如增加app_evevthub.h和app_evevthub.c文件，实现示例如下：
 
 ```c
 // app_evevthub.h
+#ifndef __APP_EVENTHUB_H__
+#define __APP_EVENTHUB_H__
+
 #include "eventhub.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif 
 
-extern eventhub_t g_eventhub;	// 假设这是在应用中定义的实例
+extern eventhub_t g_eventhub;	// 在应用中定义的实例
+
+    
+#define APP_EVENTHUB_DEINIT() \
+    eventhub_destroy(&g_eventhub)
 
 #define APP_EVENTHUB_SUBSCRIBE(event_type, cb, user_data) \
     eventhub_subscribe(&g_eventhub, event_type, cb, user_data)
     
 #define APP_EVENTHUB_UNSUBSCRIBE(event_type, cb) \
-    eventhub_unsubscribe(&g_default_eventhub, event_type, cb)
+    eventhub_unsubscribe(&g_eventhub, event_type, cb)
 
 #define APP_EVENTHUB_PUBLISH(event, timeout) \
-    eventhub_publish(&g_default_eventhub, event, timeout)
+    do\
+    {\
+        eventhub_event_t e = {0};\
+        e.type = event;\
+        eventhub_publish(&g_eventhub, &e, timeout);\
+    } while(0)
 
-#define APP_EVENTHUB_PROCESS(timeout) \
-    eventhub_process(&g_default_eventhub, timeout)
+
+void app_eventhub_init(void);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __APP_EVENTHUB_H__ */
+```
+
+```c
+// app_evevthub.c
+
+#include "FreeRTOS.h"
+
+#include "app_eventhub.h"
+
+eventhub_t g_eventhub = {0};
+
+static void event_pro_thread_entry(void *param)
+{
+    while (1)
+    {
+        eventhub_process(&g_eventhub, MAX_DELAY);
+    }
+}
+
+
+void app_eventhub_init(void)
+{
+    eventhub_init(&g_eventhub);
+    int ret = xTaskCreate(event_pro_thread_entry, "event_pro_thread_entry", 512, NULL, 3, NULL);
+    if(pdPASS != ret)
+    {
+        // 创建失败处理
+    }
+}
 ```
 
 这样用户调用宏定义的简化API时就可以少传递一个参数，应用只需要引用这个头文件即可。

@@ -5,12 +5,9 @@
 #include "task.h"
 
 // FreeRTOS互斥锁实现
-bool eventhub_port_mutex_init(eventhub_mutex_t* mutex) 
+eventhub_mutex_t* eventhub_port_mutex_init(void)
 {
-    if (mutex == NULL) return false;
-    
-    mutex = xSemaphoreCreateMutex();
-    return mutex != NULL;
+    return xSemaphoreCreateMutex();
 }
 
 bool eventhub_port_mutex_lock(eventhub_mutex_t* mutex, uint32_t timeout) 
@@ -41,12 +38,9 @@ eventhub_timestamp_t eventhub_port_get_timestamp(void)
 }
 
 // FreeRTOS队列实现
-bool eventhub_port_queue_init(eventhub_queue_t* queue, uint32_t item_size, uint32_t queue_len) 
+eventhub_queue_t* eventhub_port_queue_init(uint32_t item_size, uint32_t queue_len)
 {
-    if (queue == NULL) return false;
-    
-    queue = xQueueCreate(queue_len, item_size);
-    return queue != NULL;
+    return xQueueCreate(queue_len, item_size);
 }
 
 bool eventhub_port_queue_send(eventhub_queue_t* queue, const void* data, uint32_t timeout) 
