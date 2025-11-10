@@ -56,16 +56,26 @@ eventhub/
    根据项目需求修改配置（关键配置项说明如下）：
 
    ```c
-   // 1. 选择运行环境：0=裸机，1=RTOS
-   #define EVENTHUB_USING_RTOS 0
+   // 环境选择：0=裸机，1=RTOS
+   #define EVENTHUB_USING_RTOS 1
    
-   // 2. 资源限制（根据 MCU 内存调整）
-   #define EVENTHUB_MAX_EVENT_TYPES 10  // 最大事件类型数
-   #define EVENTHUB_MAX_SUBSCRIBERS 8   // 最大订阅者数
-   #define EVENTHUB_QUEUE_SIZE 16       // RTOS 事件队列大小（裸机忽略）
+   // 最大模块订阅者数量（根据实际功能模块数量调整）
+   #define EVENTHUB_MAX_MODULES 64
    
-   // 3. 调试开关（1=启用日志，0=禁用）
-   #define EVENTHUB_ENABLE_LOG 1
+   // 事件队列大小（仅RTOS环境有效）
+   #define EVENTHUB_QUEUE_SIZE 16
+   
+   // 是否启用事件日志（调试用）
+   #define EVENTHUB_ENABLE_LOG 0
+   
+   // 支持的最大事件类型数量
+   #define EVENTHUB_MAX_EVENT_TYPES 1024
+   
+   // 位图配置：每个位图字包含的位数
+   #define EVENT_MASK_BITS_PER_WORD 32
+   
+   // 计算需要的位图字数量以支持所有事件类型
+   #define EVENT_MASK_WORDS ((EVENTHUB_MAX_EVENT_TYPES + EVENT_MASK_BITS_PER_WORD - 1) / EVENT_MASK_BITS_PER_WORD)
    ```
 
    #### 步骤 3：实现平台适配接口（`eventhub_port.c`）
@@ -134,17 +144,17 @@ eventhub/
    ### 3.4 事件数据结构
 
    ```c
-   // 事件类型（用户需扩展具体类型，如 EVENT_VCC_POWER_ON）
-   typedef uint8_t eventhub_event_type_t;
-   
-   // 事件数据结构体
-   typedef struct 
-   {
-       eventhub_event_type_t type;          // 事件类型（如 1=VCC电源打开）
-       eventhub_timestamp_t timestamp;      // 事件时间戳（ms）
-       void* data;                          // 附加数据（可选，如电压值、GPS坐标）
-       uint32_t data_len;                   // 附加数据长度（字节）
-   } eventhub_event_t;
+// 事件类型（用户需扩展具体类型，如EVENT_POWER_ON）
+typedef uint32_t eventhub_event_type_t;
+
+// 事件数据结构体
+typedef struct 
+{
+    eventhub_event_type_t type;          // 事件类型
+    eventhub_timestamp_t timestamp;      // 时间戳
+    void* data;                          // 事件附加数据（可选）
+    uint32_t data_len;                   // 附加数据长度
+} eventhub_event_t;
    ```
 
    ## 4. 环境适配指南
