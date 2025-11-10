@@ -7,7 +7,7 @@
 #include "eventhub_port.h"
 
 // 事件类型（用户需扩展具体类型，如EVENT_POWER_ON）
-typedef uint8_t eventhub_event_type_t;
+typedef uint32_t eventhub_event_type_t;
 
 // 事件数据结构体
 typedef struct 
@@ -21,6 +21,15 @@ typedef struct
 // 订阅者回调函数原型
 typedef void (*eventhub_subscriber_cb)(const eventhub_event_t* event, void* user_data);
 
+// 模块订阅者结构体
+typedef struct 
+{
+    eventhub_subscriber_cb cb;
+    void* user_data;
+    uint32_t event_mask[EVENT_MASK_WORDS];  // 位图数组表示该模块订阅的所有事件类型
+    bool in_use;
+} eventhub_module_subscriber_t;
+
 // 事件中枢句柄（用户无需关心内部结构）
 typedef struct 
 {
@@ -31,14 +40,8 @@ typedef struct
 #if EVENTHUB_USING_RTOS
         eventhub_queue_t* queue;
 #endif
-        // 订阅者列表（包含事件类型、回调、用户数据）
-        struct 
-        {
-            eventhub_event_type_t event_type;
-            eventhub_subscriber_cb cb;
-            void* user_data;
-            bool in_use;
-        } subscribers[EVENTHUB_MAX_SUBSCRIBERS];
+        // 模块订阅者列表
+        eventhub_module_subscriber_t module_subscribers[EVENTHUB_MAX_MODULES];
     } priv;
 } eventhub_t;
 
@@ -50,7 +53,7 @@ typedef struct
 bool eventhub_init(eventhub_t* hub);
 
 /**
- * 订阅事件
+ * 订阅事件（模块级订阅）
  * @param hub 事件中枢实例
  * @param event_type 事件类型
  * @param cb 回调函数
@@ -61,7 +64,7 @@ bool eventhub_subscribe(eventhub_t* hub, eventhub_event_type_t event_type,
                        eventhub_subscriber_cb cb, void* user_data);
 
 /**
- * 取消订阅
+ * 取消订阅（模块级取消订阅）
  * @param hub 事件中枢实例
  * @param event_type 事件类型
  * @param cb 要取消的回调函数

@@ -7,12 +7,58 @@
 #define EVENTHUB_LOG(...)
 #endif
 
+// 辅助函数：设置事件位
+static inline void set_event_bit(uint32_t* mask, eventhub_event_type_t event_type) 
+{
+    if (event_type < EVENTHUB_MAX_EVENT_TYPES) 
+    {
+        uint32_t word_index = event_type / EVENT_MASK_BITS_PER_WORD;
+        uint32_t bit_index = event_type % EVENT_MASK_BITS_PER_WORD;
+        mask[word_index] |= (1U << bit_index);
+    }
+}
+
+// 辅助函数：清除事件位
+static inline void clear_event_bit(uint32_t* mask, eventhub_event_type_t event_type) 
+{
+    if (event_type < EVENTHUB_MAX_EVENT_TYPES) 
+    {
+        uint32_t word_index = event_type / EVENT_MASK_BITS_PER_WORD;
+        uint32_t bit_index = event_type % EVENT_MASK_BITS_PER_WORD;
+        mask[word_index] &= ~(1U << bit_index);
+    }
+}
+
+// 辅助函数：检查事件位是否设置
+static inline bool is_event_set(const uint32_t* mask, eventhub_event_type_t event_type) 
+{
+    if (event_type < EVENTHUB_MAX_EVENT_TYPES) 
+    {
+        uint32_t word_index = event_type / EVENT_MASK_BITS_PER_WORD;
+        uint32_t bit_index = event_type % EVENT_MASK_BITS_PER_WORD;
+        return (mask[word_index] & (1U << bit_index)) != 0;
+    }
+    return false;
+}
+
+// 辅助函数：检查位图是否为空
+static inline bool is_mask_empty(const uint32_t* mask) 
+{
+    for (int i = 0; i < EVENT_MASK_WORDS; i++) 
+    {
+        if (mask[i] != 0) 
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
 bool eventhub_init(eventhub_t* hub) 
 {
     if (hub == NULL) return false;
     memset(hub, 0, sizeof(eventhub_t));
 
-#if EVENTHUB_USING_RTOS
     // 初始化互斥锁
     hub->priv.mutex = eventhub_port_mutex_init();
     if (NULL == hub->priv.mutex) 
@@ -21,6 +67,7 @@ bool eventhub_init(eventhub_t* hub)
         return false;
     }
 
+#if EVENTHUB_USING_RTOS
     // 初始化事件队列（存储eventhub_event_t类型）
     hub->priv.queue = eventhub_port_queue_init(sizeof(eventhub_event_t), EVENTHUB_QUEUE_SIZE);
     if (NULL == hub->priv.queue) 
@@ -38,7 +85,8 @@ bool eventhub_init(eventhub_t* hub)
 bool eventhub_subscribe(eventhub_t* hub, eventhub_event_type_t event_type,
                        eventhub_subscriber_cb cb, void* user_data) 
 {
-    if (hub == NULL || cb == NULL) return false;
+    if (hub == NULL || cb == NULL || event_type >= EVENTHUB_MAX_EVENT_TYPES) 
+        return false;
 
     if (!eventhub_port_mutex_lock(hub->priv.mutex, 0))
     {
@@ -46,30 +94,48 @@ bool eventhub_subscribe(eventhub_t* hub, eventhub_event_type_t event_type,
         return false;
     }
 
-    // 查找空位置注册订阅者
-    for (uint8_t i = 0; i < EVENTHUB_MAX_SUBSCRIBERS; i++) 
+    // 查找是否已存在该模块（相同回调和用户数据）
+    for (uint16_t i = 0; i < EVENTHUB_MAX_MODULES; i++) 
     {
-        if (!hub->priv.subscribers[i].in_use) 
+        if (hub->priv.module_subscribers[i].in_use &&
+            hub->priv.module_subscribers[i].cb == cb &&
+            hub->priv.module_subscribers[i].user_data == user_data) 
         {
-            hub->priv.subscribers[i].event_type = event_type;
-            hub->priv.subscribers[i].cb = cb;
-            hub->priv.subscribers[i].user_data = user_data;
-            hub->priv.subscribers[i].in_use = true;
+            // 同一模块添加新事件类型
+            set_event_bit(hub->priv.module_subscribers[i].event_mask, event_type);
             eventhub_port_mutex_unlock(hub->priv.mutex);
-            EVENTHUB_LOG("eventhub: subscribe event %d\n", event_type);
+            EVENTHUB_LOG("eventhub: module subscribe event %d\n", event_type);
+            return true;
+        }
+    }
+
+    // 查找空位置注册新模块
+    for (uint16_t i = 0; i < EVENTHUB_MAX_MODULES; i++) 
+    {
+        if (!hub->priv.module_subscribers[i].in_use) 
+        {
+            hub->priv.module_subscribers[i].cb = cb;
+            hub->priv.module_subscribers[i].user_data = user_data;
+            memset(hub->priv.module_subscribers[i].event_mask, 0, 
+                   sizeof(hub->priv.module_subscribers[i].event_mask));
+            set_event_bit(hub->priv.module_subscribers[i].event_mask, event_type);
+            hub->priv.module_subscribers[i].in_use = true;
+            eventhub_port_mutex_unlock(hub->priv.mutex);
+            EVENTHUB_LOG("eventhub: new module subscribe event %d\n", event_type);
             return true;
         }
     }
 
     eventhub_port_mutex_unlock(hub->priv.mutex);
-    EVENTHUB_LOG("eventhub: subscribe failed (max subscribers)\n");
+    EVENTHUB_LOG("eventhub: subscribe failed (max modules)\n");
     return false;
 }
 
 bool eventhub_unsubscribe(eventhub_t* hub, eventhub_event_type_t event_type,
                          eventhub_subscriber_cb cb) 
 {
-    if (hub == NULL || cb == NULL) return false;
+    if (hub == NULL || cb == NULL || event_type >= EVENTHUB_MAX_EVENT_TYPES) 
+        return false;
 
     if (!eventhub_port_mutex_lock(hub->priv.mutex, 0))
     {
@@ -77,13 +143,21 @@ bool eventhub_unsubscribe(eventhub_t* hub, eventhub_event_type_t event_type,
         return false;
     }
 
-    for (uint8_t i = 0; i < EVENTHUB_MAX_SUBSCRIBERS; i++) 
+    // 查找对应的模块订阅者
+    for (uint16_t i = 0; i < EVENTHUB_MAX_MODULES; i++) 
     {
-        if (hub->priv.subscribers[i].in_use &&
-            hub->priv.subscribers[i].event_type == event_type &&
-            hub->priv.subscribers[i].cb == cb) 
+        if (hub->priv.module_subscribers[i].in_use &&
+            hub->priv.module_subscribers[i].cb == cb) 
         {
-            hub->priv.subscribers[i].in_use = false;
+            // 清除该事件类型的位
+            clear_event_bit(hub->priv.module_subscribers[i].event_mask, event_type);
+            
+            // 如果该模块不再订阅任何事件，则完全取消订阅
+            if (is_mask_empty(hub->priv.module_subscribers[i].event_mask)) 
+            {
+                hub->priv.module_subscribers[i].in_use = false;
+            }
+            
             eventhub_port_mutex_unlock(hub->priv.mutex);
             EVENTHUB_LOG("eventhub: unsubscribe event %d\n", event_type);
             return true;
@@ -123,14 +197,14 @@ bool eventhub_publish(eventhub_t* hub, const eventhub_event_t* event, uint32_t t
         return false;
     }
     
-    // 处理所有订阅该事件类型的订阅者
-    for (uint8_t i = 0; i < EVENTHUB_MAX_SUBSCRIBERS; i++) 
+    // 处理所有订阅该事件类型的模块
+    for (uint16_t i = 0; i < EVENTHUB_MAX_MODULES; i++) 
     {
-        if (hub->priv.subscribers[i].in_use &&
-            hub->priv.subscribers[i].event_type == event->type) 
+        if (hub->priv.module_subscribers[i].in_use &&
+            is_event_set(hub->priv.module_subscribers[i].event_mask, event->type)) 
         {
-            // 调用订阅者的回调函数
-            hub->priv.subscribers[i].cb(&event_with_ts, hub->priv.subscribers[i].user_data);
+            // 调用模块的回调函数
+            hub->priv.module_subscribers[i].cb(&event_with_ts, hub->priv.module_subscribers[i].user_data);
         }
     }
     
@@ -163,15 +237,15 @@ void eventhub_process(eventhub_t* hub, uint32_t timeout)
             return;
         }
         
-        // 遍历订阅者，调用回调
-        for (uint8_t i = 0; i < EVENTHUB_MAX_SUBSCRIBERS; i++) 
+        // 遍历模块订阅者，调用回调
+        for (uint16_t i = 0; i < EVENTHUB_MAX_MODULES; i++) 
         {
-            if (hub->priv.subscribers[i].in_use &&
-                hub->priv.subscribers[i].event_type == event.type) 
+            if (hub->priv.module_subscribers[i].in_use &&
+                is_event_set(hub->priv.module_subscribers[i].event_mask, event.type)) 
             {
-                if (hub->priv.subscribers[i].cb != NULL) 
+                if (hub->priv.module_subscribers[i].cb != NULL) 
                 {
-                    hub->priv.subscribers[i].cb(&event, hub->priv.subscribers[i].user_data);
+                    hub->priv.module_subscribers[i].cb(&event, hub->priv.module_subscribers[i].user_data);
                 }
             }
         }
@@ -192,6 +266,6 @@ void eventhub_destroy(eventhub_t* hub)
     eventhub_port_queue_destroy(hub->priv.queue);
 #endif
 
-    // 清理订阅者信息（可选的安全措施）
-    memset(&hub->priv.subscribers, 0, sizeof(hub->priv.subscribers));
+    // 清理模块订阅者信息
+    memset(&hub->priv.module_subscribers, 0, sizeof(hub->priv.module_subscribers));
 }
